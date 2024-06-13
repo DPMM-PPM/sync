@@ -1,4 +1,4 @@
-Description
+<h1>Description</h1>
 
 Ce plugin ajoute une tache CRON au planificateur de taches d'ILIAS.
 Il permet :
