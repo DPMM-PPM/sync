@@ -1,0 +1,20 @@
+// 
+// English Language File for syncCron Plugin
+//
+
+<!-- language file start -->
+ldap_plg_sync_cron_title#:#LDAP User Synchronization (Plugin)
+ldap_plg_sync_cron_info#:#If activated, user accounts will be imported from the LDAP directory and synchronised continuously as an option.
+ldap_plg_sync_day_of_run#:#Day of cronJob
+ldap_plg_sync_mon#:#Monday
+ldap_plg_sync_tue#:#Tuesday
+ldap_plg_sync_wed#:#Wednesday
+ldap_plg_sync_thu#:#Thuesday
+ldap_plg_sync_fri#:#Friday
+ldap_plg_sync_sat#:#Saturday
+ldap_plg_sync_sun#:#Sunday
+ldap_plg_sync_all#:#Every days
+ldap_plg_sync_not_good_day#:#It isn't the good day
+ldap_plg_sync_good_day#:#It's the good day
+ldap_plg_sync_mindefConnect#:#Synchronize openIdconnect accounts
+ldap_plg_sync_mindefConnect_info#:#Synchronizes openidConnect (mindefConnect) accounts based on LDAP linked to openId authentication.

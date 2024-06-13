@@ -1,0 +1,26 @@
+// 
+// French Language File for syncCron Plugin
+//
+
+<!-- language file start -->
+ldap_plg_sync_cron_title#:#Synchronisation des comptes LDAP (Plugin)
+ldap_plg_sync_cron_info#:#Les comptes sont importés et synchronisés. La tâche est executée une fois par semaine selon le choix de l'administrateur.
+ldap_plg_sync_day_of_run#:#Jour d'éxecution du CRON
+ldap_plg_sync_mon#:#Lundi
+ldap_plg_sync_tue#:#Mardi
+ldap_plg_sync_wed#:#Mercredi
+ldap_plg_sync_thu#:#Jeudi
+ldap_plg_sync_fri#:#Vendredi
+ldap_plg_sync_sat#:#Samedi
+ldap_plg_sync_sun#:#Dimanche
+ldap_plg_sync_all#:#Tous les jours
+ldap_plg_sync_not_good_day#:#Pas le jour défini
+ldap_plg_sync_good_day#:#bon jour
+ldap_plg_sync_mindefConnect#:#Synchroniser les comptes openIdconnect
+ldap_plg_sync_mindefConnect_info#:#Synchronise les comptes openidConnect (mindefConnect) sur la base du LDAP lié à l'authentification openId.
+ldap_plg_sync_uid_choice#:#Gestion de la Pagination
+ldap_plg_sync_uid_choice_pagination_info#:#Activation de la pagination par le LDAP. Pris en charge sur les LDAP V3, le LDAP renvoi des pages de 100 utilisateurs.
+ldap_plg_sync_uid_choice_info#:#Déternine la façon dont le LDAP va être interrogé afin de limiter le nombre de lignes retournées si la pagination est désactivée ou non prise en charge par le LDAP.
+ldap_plg_sync_uid_choice_default_info#:#Les users sont cherchés dans l'ordre alphabétique a*, b*, c*,....
+ldap_plg_sync_uid_choice_annudef_info#:#Les users sont cherchés dans l'ordre *.aa*, *.ab*, *.ac., ....,*.ba*,*.bb*, ....
+ldap_plg_sync_uid_choice_drcpt_info#:#Les users sont cherchés dans l'ordre a.a*, a.b*,a.c*,...., b.a*,b.b*, .......
