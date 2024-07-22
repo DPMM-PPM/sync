@@ -556,41 +556,40 @@ class ilsyncLDAPQuery
      * Query by scope
      * IL_SCOPE_SUB => ldap_search
      * IL_SCOPE_ONE => ldap_list
-     *
-     * @access private
-     * @param
-     *
+     * @param array|null $controls LDAP Control to be passed on the the ldap functions
+     * @return resource|null
      */
-    private function queryByScope($a_scope, $a_base_dn, $a_filter, $a_attributes)
+    private function queryByScope(int $a_scope, string $a_base_dn, string $a_filter, array $a_attributes, array $controls = [])
     {
-        $a_filter = $a_filter ? $a_filter : "(objectclass=*)";
+        $a_filter = $a_filter ?: "(objectclass=*)";
 
         switch ($a_scope) {
-            case IL_LDAP_SCOPE_SUB:
-                $res = @ldap_search($this->lh, $a_base_dn, $a_filter, $a_attributes);
+            case ilLDAPServer::LDAP_SCOPE_SUB:
+                $res = ldap_search($this->lh, $a_base_dn, $a_filter, $a_attributes, 0, 0, 0, LDAP_DEREF_NEVER, $controls);
                 break;
-                
-            case IL_LDAP_SCOPE_ONE:
-                $res = @ldap_list($this->lh, $a_base_dn, $a_filter, $a_attributes);
-                break;
-            
-            case IL_LDAP_SCOPE_BASE:
 
-                $res = @ldap_read($this->lh, $a_base_dn, $a_filter, $a_attributes);
+            case ilLDAPServer::LDAP_SCOPE_ONE:
+                $res = ldap_list($this->lh, $a_base_dn, $a_filter, $a_attributes, 0, 0, 0, LDAP_DEREF_NEVER, $controls);
+                break;
+
+            case ilLDAPServer::LDAP_SCOPE_BASE:
+                $res = ldap_read($this->lh, $a_base_dn, $a_filter, $a_attributes, 0, 0, 0, LDAP_DEREF_NEVER, $controls);
                 break;
 
             default:
-                $this->log->warning("LDAP: LDAPQuery: Unknown search scope");
+                throw new ilLDAPUndefinedScopeException(
+                    "Undefined LDAP Search Scope: " . $a_scope
+                );
         }
-        
-        $error = ldap_error($this->lh);
-        if (strcmp('Success', $error) !== 0) {
-            $this->getLogger()->warning($error);
-            $this->getLogger()->warning('Base DN:' . $a_base_dn);
-            $this->getLogger()->warning('Filter: ' . $a_filter);
+
+        $error = ldap_errno($this->lh);
+        if ($error) {
+            $this->logger->warning("LDAP Error Code: " . $error . "(" . ldap_err2str($error) . ")");
+            $this->logger->warning('Base DN:' . $a_base_dn);
+            $this->logger->warning('Filter: ' . $a_filter);
         }
-        
-        return $res;
+
+        return $res ?? null;
     }
     
     /**
@@ -600,7 +599,7 @@ class ilsyncLDAPQuery
      * @throws ilLDAPQueryException
      *
      */
-    private function connect()
+    private function connect(): void
     {
         $this->lh = @ldap_connect($this->ldap_server_url);
         
@@ -617,16 +616,13 @@ class ilsyncLDAPQuery
             if (!ldap_set_option($this->lh, LDAP_OPT_REFERRALS, true)) {
                 throw new ilLDAPQueryException("LDAP: Cannot switch on LDAP referrals");
             }
-            #@ldap_set_rebind_proc($this->lh,'referralRebind');
         } else {
             ldap_set_option($this->lh, LDAP_OPT_REFERRALS, false);
-            $this->log->debug('Switching referrals to false.');
+            $this->logger->debug('Switching referrals to false.');
         }
         // Start TLS
-        if ($this->settings->isActiveTLS()) {
-            if (!ldap_start_tls($this->lh)) {
+        if ($this->settings->isActiveTLS() && !ldap_start_tls($this->lh)) {
                 throw new ilLDAPQueryException("LDAP: Cannot start LDAP TLS");
-            }
         }
     }
     
@@ -638,60 +634,65 @@ class ilsyncLDAPQuery
      * @throws ilLDAPQueryException on connection failure.
      *
      */
-    public function bind($a_binding_type = IL_LDAP_BIND_DEFAULT, $a_user_dn = '', $a_password = '')
+    public function bind(int $a_binding_type = ilLDAPQuery::LDAP_BIND_DEFAULT, string $a_user_dn = '', string $a_password = ''): void
     {
         switch ($a_binding_type) {
-            case IL_LDAP_BIND_TEST:
+            case self::LDAP_BIND_TEST:
                 ldap_set_option($this->lh, LDAP_OPT_NETWORK_TIMEOUT, ilLDAPServer::DEFAULT_NETWORK_TIMEOUT);
                 // fall through
                 // no break
-            case IL_LDAP_BIND_DEFAULT:
+            case self::LDAP_BIND_DEFAULT:
                 // Now bind anonymously or as user
                 if (
-                    IL_LDAP_BIND_USER == $this->settings->getBindingType() &&
-                    strlen($this->settings->getBindUser())
+                    ilLDAPServer::LDAP_BIND_USER === $this->settings->getBindingType() &&
+                    $this->settings->getBindUser() !==''
                 ) {
                     $user = $this->settings->getBindUser();
                     $pass = $this->settings->getBindPassword();
 
-                    define('IL_LDAP_REBIND_USER', $user);
-                    define('IL_LDAP_REBIND_PASS', $pass);
-                    $this->log->debug('Bind as ' . $user);
+                    $this->logger->debug('Bind as ' . $user);
                 } else {
                     $user = $pass = '';
-                    $this->log->debug('Bind anonymous');
+                    $this->logger->debug('Bind anonymous');
                 }
                 break;
                 
-            case IL_LDAP_BIND_ADMIN:
+            case self::LDAP_BIND_ADMIN:
                 $user = $this->settings->getRoleBindDN();
                 $pass = $this->settings->getRoleBindPassword();
-                
-                if (!strlen($user) or !strlen($pass)) {
+
+                if ($user === '' || $pass === '') {
                     $user = $this->settings->getBindUser();
                     $pass = $this->settings->getBindPassword();
                 }
-
-                define('IL_LDAP_REBIND_USER', $user);
-                define('IL_LDAP_REBIND_PASS', $pass);
                 break;
                 
-            case IL_LDAP_BIND_AUTH:
-                $this->log->debug('Trying to bind as: ' . $a_user_dn);
+            case self::LDAP_BIND_AUTH:
+                $this->logger->debug('Trying to bind as: ' . $a_user_dn);
                 $user = $a_user_dn;
                 $pass = $a_password;
                 break;
-                
-                
+
+
             default:
                 throw new ilLDAPQueryException('LDAP: unknown binding type in: ' . __METHOD__);
         }
         
-        if (!@ldap_bind($this->lh, $user, $pass)) {
-            throw new ilLDAPQueryException('LDAP: Cannot bind as ' . $user . ' with message: ' . ldap_err2str(ldap_errno($this->lh)) . ' Trying fallback...', ldap_errno($this->lh));
-        } else {
-            $this->log->debug('Bind successful.');
+        try {
+            set_error_handler(static function (int $severity, string $message, string $file, int $line): void {
+                throw new ErrorException($message, $severity, $severity, $file, $line);
+            });
+
+            if (!ldap_bind($this->lh, $user, $pass)) {
+                throw new ilLDAPQueryException('LDAP: Cannot bind as ' . $user . ' with message: ' . ldap_err2str(ldap_errno($this->lh)) . ' Trying fallback...', ldap_errno($this->lh));
+            }
+        } catch (Throwable $e) {
+            throw new ilLDAPQueryException('LDAP: Cannot bind as ' . $user . ' with message: ' . $e->getMessage());
+        } finally {
+            restore_error_handler();
         }
+
+        $this->logger->debug('Bind successful.');
     }
     
     /**
@@ -701,10 +702,8 @@ class ilsyncLDAPQuery
      * @param
      *
      */
-    private function fetchUserProfileFields()
-    {
-        include_once('Services/LDAP/classes/class.ilLDAPRoleAssignmentRules.php');
-        
+    private function fetchUserProfileFields(): void
+    {   
         $this->user_fields = array_merge(
             array($this->settings->getUserAttribute()),
             array('dn'),
@@ -713,20 +712,6 @@ class ilsyncLDAPQuery
         );
     }
     
-    
-    /**
-     * Unbind
-     *
-     * @access private
-     * @param
-     *
-     */
-    private function unbind()
-    {
-        if ($this->lh) {
-            @ldap_unbind($this->lh);
-        }
-    }
     
     
     /**
@@ -739,7 +724,7 @@ class ilsyncLDAPQuery
     public function __destruct()
     {
         if ($this->lh) {
-            @ldap_unbind($this->lh);
+            ldap_unbind($this->lh);
         }
     }
 
@@ -750,40 +735,25 @@ class ilsyncLDAPQuery
     public function checkPaginationEnabled() : bool
     {
         if ($this->getServer()->getVersion() != 3) {
-            $this->log->info('Pagination control unavailable for ldap v' . $this->getServer()->getVersion());
+            $this->logger->info('Pagination control unavailable for ldap v' . $this->getServer()->getVersion());
             return false;
         }
 
         $result = ldap_read($this->lh, '', '(objectClass=*)', [self::IL_LDAP_SUPPORTED_CONTROL]);
         if ($result === false) {
-            $this->log->warning('Failed to query for pagination control');
+            $this->logger->warning('Failed to query for pagination control');
             return false;
         }
         $entries = (array) (ldap_get_entries($this->lh, $result)[0] ?? []);
         if (
             array_key_exists(strtolower(self::IL_LDAP_SUPPORTED_CONTROL), $entries) &&
             is_array($entries[strtolower(self::IL_LDAP_SUPPORTED_CONTROL)]) &&
-            in_array(self::IL_LDAP_CONTROL_PAGEDRESULTS, $entries[strtolower(self::IL_LDAP_SUPPORTED_CONTROL)])
+            in_array(LDAP_CONTROL_PAGEDRESULTS, $entries[strtolower(self::IL_LDAP_SUPPORTED_CONTROL)], true)
         ) {
-            $this->log->info('Using paged control');
+            $this->logger->info('Using paged control');
             return true;
         }
-        $this->log->info('Paged control disabled');
+        $this->logger->info('Paged control disabled');
         return false;
-    }
-}
-
-function referralRebind($a_ds, $a_url)
-{
-    global $DIC;
-
-    $ilLog = $DIC['ilLog'];
-    
-    $ilLog->write('LDAP: Called referralRebind.');
-    
-    ldap_set_option($a_ds, LDAP_OPT_PROTOCOL_VERSION, 3);
-    
-    if (!ldap_bind($a_ds, IL_LDAP_REBIND_USER, IL_LDAP_REBIND_PASS)) {
-        $ilLog->write('LDAP: Rebind failed');
     }
 }
