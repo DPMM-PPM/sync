@@ -46,19 +46,21 @@ class ilsyncLDAPQuery
      * @throws ilLDAPQueryException
      *
      */
-    public function __construct(ilLDAPServer $a_server, $a_url = '')
+    public function __construct(ilLDAPServer $a_server, string $a_url = '')
     {
+	global $DIC;
+	$this->logger = $DIC->logger->auth();
+	    
         $this->settings = $a_server;
         
-        if (strlen($a_url)) {
+        if ($a_url !== '') {
             $this->ldap_server_url = $a_url;
         } else {
             $this->ldap_server_url = $this->settings->getUrl();
         }
         
         $this->mapping = ilLDAPAttributeMapping::_getInstanceByServerId($this->settings->getServerId());
-        $this->log = $GLOBALS['DIC']->logger()->auth();
-        
+                
         $this->fetchUserProfileFields();
         $this->connect();
     }
