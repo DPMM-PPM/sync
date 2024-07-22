@@ -133,7 +133,7 @@ class ilsyncLDAPQuery
      * @return object ilLDAPResult
      * @throws ilLDAPQueryException
      */
-    public function query($a_search_base, $a_filter, $a_scope, $a_attributes)
+    public function query($a_search_base, $a_filter, $a_scope, $a_attributes): ilLDAPResult
     {
         $res = $this->queryByScope($a_scope, $a_search_base, $a_filter, $a_attributes);
         if ($res === false) {
@@ -154,9 +154,9 @@ class ilsyncLDAPQuery
      * @access public
      * @throws ilLDAPQueryException
      */
-    public function modAdd($a_dn, $a_attribute)
+    public function modAdd(string $a_dn, array $a_attribute): bool
     {
-        if (@ldap_mod_add($this->lh, $a_dn, $a_attribute)) {
+        if (ldap_mod_add($this->lh, $a_dn, $a_attribute)) {
             return true;
         }
         throw new ilLDAPQueryException(__METHOD__ . ' ' . ldap_error($this->lh));
@@ -168,9 +168,9 @@ class ilsyncLDAPQuery
      * @access public
      * @throws ilLDAPQueryException
      */
-    public function modDelete($a_dn, $a_attribute)
+    public function modDelete(string $a_dn, array $a_attribute): bool
     {
-        if (@ldap_mod_del($this->lh, $a_dn, $a_attribute)) {
+        if (ldap_mod_del($this->lh, $a_dn, $a_attribute)) {
             return true;
         }
         throw new ilLDAPQueryException(__METHOD__ . ' ' . ldap_error($this->lh));
@@ -184,20 +184,23 @@ class ilsyncLDAPQuery
      * @access public
      *
      */
-    private function readAllUsers()
+    private function readAllUsers(): void
     {
         // Build search base
-        if (($dn = $this->settings->getSearchBase()) && substr($dn, -1) != ',') {
+	$this->logger->debug($this->settings->getSearchBase());
+        $this->logger->debug($this->settings->getBaseDN());
+        if (($dn = $this->settings->getSearchBase()) && substr($dn, -1) !== ',') {
             $dn .= ',';
         }
         $dn .= $this->settings->getBaseDN();
-        $tmp_result = null;
 
+        $tmp_result = null;
+ 
         if ($this->checkPaginationEnabled()) {
             try {
                 $tmp_result = $this->runReadAllUsersPaged($dn);
             } catch (ilLDAPPagingException $e) {
-                $this->log->warning('Using LDAP with paging failed. Trying to use fallback.');
+                $this->logger->warning('Using LDAP with paging failed. Trying to use fallback.');
                 $tmp_result = $this->runReadAllUsersPartial($dn);
             }
         } else {
@@ -205,20 +208,22 @@ class ilsyncLDAPQuery
         }
 
         if (!$tmp_result->numRows()) {
-            $this->log->notice('No users found. Aborting.');
+            $this->logger->notice('No users found. Aborting.');
         }
-        $this->log->info('Found ' . $tmp_result->numRows() . ' users.');
+        $this->logger->info('Found ' . $tmp_result->numRows() . ' users.');
         $attribute = strtolower($this->settings->getUserAttribute());
         foreach ($tmp_result->getRows() as $data) {
-            if (isset($data[$attribute])) {
-                $this->readUserData($data[$attribute], false, false);
-            } else {
-                $this->log->warning('Unknown error. No user attribute found.');
-            }
+            if (isset($data[$attribute]) && is_scalar($data[$attribute]) && (string) $data[$attribute] !== '') {
+                $this->readUserData((string) $data[$attribute]);
+		continue;
+            } 
+            $this->logger->warning(sprintf(
+                'Unknown error. No or invalid value found for attribute %s: %s',
+                $this->settings->getUserAttribute(),
+                var_export($data[$attribute] ?? null, true)
+            ));
         }
         unset($tmp_result);
-
-        return true;
     }
 
     /**
@@ -228,46 +233,54 @@ class ilsyncLDAPQuery
      * @return ilLDAPResult
      * @throws ilLDAPPagingException
      */
-    private function runReadAllUsersPaged($dn)
+    private function runReadAllUsersPaged(string $dn): ilLDAPResult
     {
         $filter = '(&' . $this->settings->getFilter();
         $filter .= ('(' . $this->settings->getUserAttribute() . '=*))');
-        $this->log->info('Searching with ldap search and filter ' . $filter . ' in ' . $dn);
+        $this->logger->info('Searching with ldap search and filter ' . $filter . ' in ' . $dn);
 
         $tmp_result = new ilLDAPResult($this->lh);
         $cookie = '';
         $estimated_results = 0;
         do {
-            try {
-                $res = ldap_control_paged_result($this->lh, self::PAGINATION_SIZE, true, $cookie);
-                if ($res === false) {
-                    throw new ilLDAPPagingException('Result pagination failed.');
-                }
-
-            } catch (Exception $e) {
-                $this->log->warning('Result pagination failed with message: ' . $e->getMessage());
-                throw new ilLDAPPagingException($e->getMessage());
-            }
-
+	    // Setup our paged results control.
+            $controls = [
+                LDAP_CONTROL_PAGEDRESULTS => [
+                    'oid' => LDAP_CONTROL_PAGEDRESULTS,
+                    'isCritical' => true,
+                    'value' => [
+                        'size' => self::PAGINATION_SIZE,
+                        'cookie' => $cookie,
+                    ],
+                ],
+            ];
             $res = $this->queryByScope(
                 $this->settings->getUserScope(),
                 $dn,
                 $filter,
-                array($this->settings->getUserAttribute())
+                array($this->settings->getUserAttribute()),
+                $controls
             );
+
             $tmp_result->setResult($res);
             $tmp_result->run();
             try {
-                ldap_control_paged_result_response($this->lh, $res, $cookie, $estimated_results);
-                $this->log->debug('Estimated number of results: ' . $estimated_results);
+                $errcode = 0;
+                $matcheddn = '';
+                $errmsg = '';
+                $referrals = [];
+                ldap_parse_result($this->lh, $res, $errcode, $matcheddn, $errmsg, $referrals, $controls);
+                $cookie = $controls[LDAP_CONTROL_PAGEDRESULTS]['value']['cookie'] ?? '';
+                $this->logger->debug('Estimated number of results: ' . $estimated_results);
+                }
+
             } catch (Exception $e) {
-                $this->log->warning('Result pagination failed with message: ' . $e->getMessage());
+                $this->logger->warning('Result pagination failed with message: ' . $e->getMessage());
                 throw new ilLDAPPagingException($e->getMessage());
             }
-        } while ($cookie !== null && $cookie != '');
+        } while (!empty($cookie));
 
         // finally reset cookie
-        ldap_control_paged_result($this->lh, 10000, false, $cookie);
         return $tmp_result;
     }
 
@@ -277,7 +290,7 @@ class ilsyncLDAPQuery
      * @param string $dn
      * @return ilLDAPResult
      */
-    private function runReadAllUsersPartial($dn)
+    private function runReadAllUsersPartial(string $dn): ilLDAPResult
     {
         $filter = $this->settings->getFilter();
         $page_filter = array('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','-');
@@ -288,21 +301,17 @@ class ilsyncLDAPQuery
             $new_filter = '(&';
             $new_filter .= $filter;
 
-            switch ($letter) {
-                case '-':
-                    $new_filter .= ('(!(|');
-                    foreach ($chars as $char) {
-                        $new_filter .= ('(' . $this->settings->getUserAttribute() . '=' . $char . '*)');
-                    }
-                    $new_filter .= ')))';
-                    break;
-
-                default:
-                    $new_filter .= ('(' . $this->settings->getUserAttribute() . '=' . $letter . '*))');
-                    break;
+            if ($letter === '-') {
+                $new_filter .= ('(!(|');
+                foreach ($chars as $char) {
+                    $new_filter .= ('(' . $this->settings->getUserAttribute() . '=' . $char . '*)');
+                }
+                $new_filter .= ')))';
+            } else {
+                $new_filter .= ('(' . $this->settings->getUserAttribute() . '=' . $letter . '*))');
             }
 
-            $this->log->info('Searching with ldap search and filter ' . $new_filter . ' in ' . $dn);
+            $this->logger->info('Searching with ldap search and filter ' . $new_filter . ' in ' . $dn);
             $res = $this->queryByScope(
                 $this->settings->getUserScope(),
                 $dn,
@@ -322,19 +331,17 @@ class ilsyncLDAPQuery
      * @param array user data
      * @return bool
      */
-    public function checkGroupMembership($a_ldap_user_name, $ldap_user_data)
+    public function checkGroupMembership(string $a_ldap_user_name, array $ldap_user_data): bool
     {
-        $group_names = $this->getServer()->getGroupNames();
-        
         if (!count($group_names)) {
-            $this->getLogger()->debug('No LDAP group restrictions found');
+            $this->logger()->debug('No LDAP group restrictions found');
             return true;
         }
         
         $group_dn = $this->getServer()->getGroupDN();
         if (
             $group_dn &&
-            (substr($group_dn, -1) != ',')
+            (substr($group_dn, -1) !== ',')
         ) {
             $group_dn .= ',';
         }
@@ -358,8 +365,8 @@ class ilsyncLDAPQuery
                 $user,
                 $this->getServer()->getGroupFilter()
             );
-            $this->getLogger()->debug('Current group search base: ' . $group_dn);
-            $this->getLogger()->debug('Current group filter: ' . $filter);
+            $this->logger()->debug('Current group search base: ' . $group_dn);
+            $this->logger()->debug('Current group filter: ' . $filter);
             
             $res = $this->queryByScope(
                 $this->getServer()->getGroupScope(),
@@ -368,14 +375,14 @@ class ilsyncLDAPQuery
                 [$this->getServer()->getGroupMember()]
             );
             
-            $this->getLogger()->dump($res);
+            $this->logger()->dump($res);
             
             $tmp_result = new ilLDAPResult($this->lh, $res);
             $tmp_result->run();
             $group_result = $tmp_result->getRows();
             
-            $this->getLogger()->debug('Group query returned: ');
-            $this->getLogger()->dump($group_result, ilLogLevel::DEBUG);
+            $this->logger()->debug('Group query returned: ');
+            $this->logger()->dump($group_result, ilLogLevel::DEBUG);
             
             if (count($group_result)) {
                 return true;
@@ -384,13 +391,13 @@ class ilsyncLDAPQuery
         
         // group restrictions failed check optional membership
         if ($this->getServer()->isMembershipOptional()) {
-            $this->getLogger()->debug('Group restrictions failed, checking user filter.');
+            $this->logger()->debug('Group restrictions failed, checking user filter.');
             if ($this->readUserData($a_ldap_user_name, true, true)) {
-                $this->getLogger()->debug('User filter matches.');
+                $this->logger()->debug('User filter matches.');
                 return true;
             }
         }
-        $this->getLogger()->debug('Group restrictions failed.');
+        $this->logger()->debug('Group restrictions failed.');
         return false;
     }
     
@@ -401,9 +408,9 @@ class ilsyncLDAPQuery
      * @access public
      *
      */
-    private function fetchGroupMembers($a_name = '')
+    private function fetchGroupMembers(string $a_name = ''): void
     {
-        $group_name = strlen($a_name) ? $a_name : $this->settings->getGroupName();
+        $group_name = $a_name !== '' ? $a_name : $this->settings->getGroupName();
         
         // Build filter
         $filter = sprintf(
@@ -415,13 +422,13 @@ class ilsyncLDAPQuery
         
         
         // Build search base
-        if (($gdn = $this->settings->getGroupDN()) && substr($gdn, -1) != ',') {
+        if (($gdn = $this->settings->getGroupDN()) && substr($gdn, -1) !== ',') {
             $gdn .= ',';
         }
         $gdn .= $this->settings->getBaseDN();
         
-        $this->log->debug('Using filter ' . $filter);
-        $this->log->debug('Using DN ' . $gdn);
+        $this->logger->debug('Using filter ' . $filter);
+        $this->logger->debug('Using DN ' . $gdn);
         $res = $this->queryByScope(
             $this->settings->getGroupScope(),
             $gdn,
@@ -435,25 +442,44 @@ class ilsyncLDAPQuery
         
         
         if (!$tmp_result->numRows()) {
-            $this->log->info('No group found.');
-            return false;
+            $this->logger->info('No group found.');
+            return;
         }
-                
-        $attribute_name = strtolower($this->settings->getGroupMember());
-        
-        // All groups
-        foreach ($group_data as $data) {
-            if (is_array($data[$attribute_name])) {
-	            $this->log->debug('Found ' . count($data[$attribute_name]) . ' group members for group ' . $data['dn']);
-                foreach ($data[$attribute_name] as $name) {
-                    $this->readUserData($name, true, true);
-                }
-            } else {
-                $this->readUserData($data[$attribute_name], true, true);
+	
+        /**
+         * @param list<string> $members
+         */
+        $readUserData = function (array $members): void {
+            if ($members === []) {
+                $this->logger->warning(sprintf(
+                    'No valid member values found for group member attribute: %s',
+                    $this->settings->getGroupMember()
+                ));
+                return;
             }
+
+            foreach ($members as $member) {
+                $this->readUserData($member, true, true);
+            }
+        };
+	
+	// All groups
+        $attribute_name = strtolower($this->settings->getGroupMember());     
+        foreach ($group_data as $data) {
+	    $members = [];
+            if (isset($data[$attribute_name])) {
+                if (is_array($data[$attribute_name])) {
+                    $members = array_map('strval', array_filter($data[$attribute_name]));
+                    $this->logger->debug('Found ' . count($members) . ' group members for group ' . $data['dn']);
+                } elseif (is_scalar($data[$attribute_name]) && (string) $data[$attribute_name] !== '') {
+                    $members = [
+                        (string) $data[$attribute_name]
+                    ];
+                }
+            }
+            $readUserData($members);
         }
         unset($tmp_result);
-        return;
     }
     
     /**
