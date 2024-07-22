@@ -1,10 +1,10 @@
 <?php
+declare(stric_types=1);
 
-
-define('IL_LDAP_BIND_DEFAULT', 0);
-define('IL_LDAP_BIND_ADMIN', 1);
-define('IL_LDAP_BIND_TEST', 2);
-define('IL_LDAP_BIND_AUTH', 10);
+//define('IL_LDAP_BIND_DEFAULT', 0);
+//define('IL_LDAP_BIND_ADMIN', 1);
+//define('IL_LDAP_BIND_TEST', 2);
+//define('IL_LDAP_BIND_AUTH', 10);
 
 /**
 *
@@ -19,32 +19,19 @@ class ilsyncLDAPQuery
     public const LDAP_BIND_TEST = 2;
     public const LDAP_BIND_AUTH = 10;
 
-    /**
-     * @var string
-     * @deprecated with PHP 7.3 (LDAP_CONTROL_PAGEDRESULTS)
-     */
-    const IL_LDAP_CONTROL_PAGEDRESULTS = '1.2.840.113556.1.4.319';
+    private const IL_LDAP_SUPPORTED_CONTROL = 'supportedControl';
+    private const PAGINATION_SIZE = 100;
 
-    /**
-     * @var string
-     */
-    const IL_LDAP_SUPPORTED_CONTROL = 'supportedControl';
+    private string $ldap_server_url;
+    private ilLDAPServer $settings;
 
-    /**
-     * @var int
-     */
-    const PAGINATION_SIZE = 100;
+    private ilLogger $logger;
 
-    private $ldap_server_url = null;
-    private $settings = null;
-    
-    /**
-     * @var ilLogger
-     */
-    private $log = null;
-    
-    private $user_fields = array();
-
+    private ilLDAPAttributeMapping $mapping;
+	
+    private array $user_fields = [];
+    private array $users = [];
+	
     /**
      * LDAP Handle
      * @var resource
