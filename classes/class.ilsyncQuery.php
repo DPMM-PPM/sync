@@ -186,13 +186,15 @@ class ilsyncQuery
      * @access public
      *
      */
-    private function readAllUsers()
+    private function readAllUsers(): void
     {
     	global $DIC;
         $ilSetting = $DIC['ilSetting'];
     
         // Build search base
-        if (($dn = $this->settings->getSearchBase()) && substr($dn, -1) != ',') {
+	$this->logger->debug($this->settings->getSearchBase());
+        $this->logger->debug($this->settings->getBaseDN());
+        if (($dn = $this->settings->getSearchBase()) && substr($dn, -1) !== ',') {
             $dn .= ',';
         }
         $dn .= $this->settings->getBaseDN();
@@ -202,7 +204,7 @@ class ilsyncQuery
             try {
                 $tmp_result = $this->runReadAllUsersPaged($dn);
             } catch (ilLDAPPagingException $e) {
-                $this->log->warning('Using LDAP with paging failed. Trying to use fallback.');
+                $this->logger->warning('Using LDAP with paging failed. Trying to use fallback.');
                 $tmp_result = $this->runReadAllUsersPartial($dn);
             }
         } else {
@@ -210,20 +212,23 @@ class ilsyncQuery
         }
 
         if (!$tmp_result->numRows()) {
-            $this->log->notice('No users found. Aborting.');
+            $this->logger->notice('No users found. Aborting.');
         }
-        $this->log->info('Found ' . $tmp_result->numRows() . ' users.');
+        $this->logger->info('Found ' . $tmp_result->numRows() . ' users.');
         $attribute = strtolower($this->settings->getUserAttribute());
         foreach ($tmp_result->getRows() as $data) {
-            if (isset($data[$attribute])) {
-                $this->readUserData($data[$attribute], false, false);
-            } else {
-                $this->log->warning('Unknown error. No user attribute found.');
-            }
+            if (isset($data[$attribute]) && is_scalar($data[$attribute]) && (string) $data[$attribute] !== '') {
+                $this->readUserData((string) $data[$attribute]);
+		continue;
+            } 
+           $this->logger->warning(sprintf(
+                'Unknown error. No or invalid value found for attribute %s: %s',
+                $this->settings->getUserAttribute(),
+                var_export($data[$attribute] ?? null, true)
+            ));
+            
         }
         unset($tmp_result);
-
-        return true;
     }
 
     /**
