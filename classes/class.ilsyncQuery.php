@@ -654,36 +654,38 @@ class ilsyncQuery
      * @param
      *
      */
-    private function queryByScope($a_scope, $a_base_dn, $a_filter, $a_attributes)
+    private function queryByScope(int $a_scope,string $a_base_dn,string $a_filter,array $a_attributes, array $controls = [])
     {
-        $a_filter = $a_filter ? $a_filter : "(objectclass=*)";
+        $a_filter = $a_filter ?: "(objectclass=*)";
 
         switch ($a_scope) {
-            case IL_LDAP_SCOPE_SUB:
-                $res = @ldap_search($this->lh, $a_base_dn, $a_filter, $a_attributes);
+            case ilLDAPServer::LDAP_SCOPE_SUB:
+                $res = ldap_search($this->lh, $a_base_dn, $a_filter, $a_attributes, 0, 0, 0, LDAP_DEFER_NEVER, $controls);
                 break;
                 
-            case IL_LDAP_SCOPE_ONE:
-                $res = @ldap_list($this->lh, $a_base_dn, $a_filter, $a_attributes);
+            case ilLDAPServer::LDAP_SCOPE_ONE:
+                $res = ldap_list($this->lh, $a_base_dn, $a_filter, $a_attributes, 0, 0, 0, LDAP_DEFER_NEVER, $controls);
                 break;
             
-            case IL_LDAP_SCOPE_BASE:
+            case ilLDAPServer::LDAP_SCOPE_BASE:
 
-                $res = @ldap_read($this->lh, $a_base_dn, $a_filter, $a_attributes);
+                $res = @ldap_read($this->lh, $a_base_dn, $a_filter, $a_attributes, 0, 0, 0, LDAP_DEFER_NEVER, $controls);
                 break;
 
             default:
-                $this->log->warning("LDAP: LDAPQuery: Unknown search scope");
+                throw new ilLDAPUndefinedScopeException(
+                    "Undefined LDAP Search Scope: " . $a_scope
+                );
         }
         
         $error = ldap_error($this->lh);
-        if (strcmp('Success', $error) !== 0) {
-            $this->getLogger()->warning($error);
-            $this->getLogger()->warning('Base DN:' . $a_base_dn);
-            $this->getLogger()->warning('Filter: ' . $a_filter);
+        if ($error) {
+            $this->logger->warning("LDAP Error Code: " . $error . "(" . ldap_err2str($error) . ")");
+            $this->logger->warning('Base DN:' . $a_base_dn);
+            $this->logger->warning('Filter: ' . $a_filter);
         }
         
-        return $res;
+        return $res ?? null;
     }
     
     /**
