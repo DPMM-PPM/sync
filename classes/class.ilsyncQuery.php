@@ -406,19 +406,19 @@ class ilsyncQuery
      * @param array user data
      * @return bool
      */
-    public function checkGroupMembership($a_ldap_user_name, $ldap_user_data)
+    public function checkGroupMembership(string $a_ldap_user_name, array $ldap_user_data): bool
     {
         $group_names = $this->getServer()->getGroupNames();
         
         if (!count($group_names)) {
-            $this->getLogger()->debug('No LDAP group restrictions found');
+            $this->logger->debug('No LDAP group restrictions found');
             return true;
         }
         
         $group_dn = $this->getServer()->getGroupDN();
         if (
             $group_dn &&
-            (substr($group_dn, -1) != ',')
+            (substr($group_dn, -1) !== ',')
         ) {
             $group_dn .= ',';
         }
@@ -442,8 +442,8 @@ class ilsyncQuery
                 $user,
                 $this->getServer()->getGroupFilter()
             );
-            $this->getLogger()->debug('Current group search base: ' . $group_dn);
-            $this->getLogger()->debug('Current group filter: ' . $filter);
+            $this->logger->debug('Current group search base: ' . $group_dn);
+            $this->logger->debug('Current group filter: ' . $filter);
             
             $res = $this->queryByScope(
                 $this->getServer()->getGroupScope(),
@@ -452,14 +452,14 @@ class ilsyncQuery
                 [$this->getServer()->getGroupMember()]
             );
             
-            $this->getLogger()->dump($res);
+            $this->logger->dump($res);
             
             $tmp_result = new ilLDAPResult($this->lh, $res);
             $tmp_result->run();
             $group_result = $tmp_result->getRows();
             
-            $this->getLogger()->debug('Group query returned: ');
-            $this->getLogger()->dump($group_result, ilLogLevel::DEBUG);
+            $this->logger()->debug('Group query returned: ');
+            $this->logger()->dump($group_result, ilLogLevel::DEBUG);
             
             if (count($group_result)) {
                 return true;
@@ -468,13 +468,13 @@ class ilsyncQuery
         
         // group restrictions failed check optional membership
         if ($this->getServer()->isMembershipOptional()) {
-            $this->getLogger()->debug('Group restrictions failed, checking user filter.');
+            $this->logger->debug('Group restrictions failed, checking user filter.');
             if ($this->readUserData($a_ldap_user_name, true, true)) {
-                $this->getLogger()->debug('User filter matches.');
+                $this->logger->debug('User filter matches.');
                 return true;
             }
         }
-        $this->getLogger()->debug('Group restrictions failed.');
+        $this->logger->debug('Group restrictions failed.');
         return false;
     }
     
