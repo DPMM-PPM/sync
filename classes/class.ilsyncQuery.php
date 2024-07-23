@@ -238,46 +238,54 @@ class ilsyncQuery
      * @return ilLDAPResult
      * @throws ilLDAPPagingException
      */
-    private function runReadAllUsersPaged($dn)
+    private function runReadAllUsersPaged(string $dn): ilLDAPResult
     {
         $filter = '(&' . $this->settings->getFilter();
         $filter .= ('(' . $this->settings->getUserAttribute() . '='.$letter.'*))');
-        $this->log->info('Searching with ldap search and filter ' . $filter . ' in ' . $dn);
+        $this->logger->info('Searching with ldap search and filter ' . $filter . ' in ' . $dn);
 
         $tmp_result = new ilLDAPResult($this->lh);
         $cookie = '';
         $estimated_results = 0;
         do {
-            try {
-                $res = ldap_control_paged_result($this->lh, self::PAGINATION_SIZE, true, $cookie);
-                if ($res === false) {
-                    throw new ilLDAPPagingException('Result pagination failed.');
-                }
-
-            } catch (Exception $e) {
-                $this->log->warning('Result pagination failed with message: ' . $e->getMessage());
-                throw new ilLDAPPagingException($e->getMessage());
-            }
-
+	    // Setup our paged results control.
+            $controls = [
+                LDAP_CONTROL_PAGEDRESULTS => [
+                    'oid' => LDAP_CONTROL_PAGEDRESULTS,
+                    'isCritical' => true,
+                    'value' => [
+                        'size' => self::PAGINATION_SIZE,
+                        'cookie' => $cookie,
+                    ],
+                ],
+            ];
             $res = $this->queryByScope(
                 $this->settings->getUserScope(),
                 $dn,
                 $filter,
-                array($this->settings->getUserAttribute())
+                array($this->settings->getUserAttribute()),
+                $controls
             );
+
             $tmp_result->setResult($res);
             $tmp_result->run();
+		
             try {
-                ldap_control_paged_result_response($this->lh, $res, $cookie, $estimated_results);
-                $this->log->debug('Estimated number of results: ' . $estimated_results.'  | nb_reels '.$tmp_result->numRows());
+		$errcode = 0;
+                $matcheddn = '';
+                $errmsg = '';
+                $referrals = [];
+                ldap_parse_result($this->lh, $res, $errcode, $matcheddn, $errmsg, $referrals, $controls);
+                $cookie = $controls[LDAP_CONTROL_PAGEDRESULTS]['value']['cookie'] ?? '';
+                $this->logger->debug('Estimated number of results: ' . $estimated_results);
+
             } catch (Exception $e) {
-                $this->log->warning('Result pagination failed with message: ' . $e->getMessage());
+                $this->logger->debug('Result pagination failed with message: ' . $e->getMessage());
                 throw new ilLDAPPagingException($e->getMessage());
             }
-        } while ($cookie !== null && $cookie != '');
+        } while (!empty($cookie));
 
         // finally reset cookie
-        ldap_control_paged_result($this->lh, 10000, false, $cookie);
         return $tmp_result;
     }
 
