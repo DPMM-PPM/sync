@@ -1,5 +1,5 @@
 <?php
-
+declare(strict_types=1);
 define('IL_LDAP_BIND_DEFAULT', 0);
 define('IL_LDAP_BIND_ADMIN', 1);
 define('IL_LDAP_BIND_TEST', 2);
@@ -23,27 +23,17 @@ class ilsyncQuery
      * @var string
      * @deprecated with PHP 7.3 (LDAP_CONTROL_PAGEDRESULTS)
      */
-    const IL_LDAP_CONTROL_PAGEDRESULTS = '1.2.840.113556.1.4.319';
-
-    /**
-     * @var string
-     */
+//    const IL_LDAP_CONTROL_PAGEDRESULTS = '1.2.840.113556.1.4.319';
+    
     const IL_LDAP_SUPPORTED_CONTROL = 'supportedControl';
-
-    /**
-     * @var int
-     */
     const PAGINATION_SIZE = 100;
 
-    private $ldap_server_url = null;
-    private $settings = null;
+    private string $ldap_server_url;
+    private ilLDAPServer $settings;
     
-    /**
-     * @var ilLogger
-     */
-    private $log = null;
-    
-    private $user_fields = array();
+    private ilLogger $logger;
+    private ilLDAPAttributeMapping $mapping;
+    private array $user_fields = [];
 
     /**
      * LDAP Handle
@@ -60,19 +50,20 @@ class ilsyncQuery
      *
      */
      
-    public function __construct(ilLDAPServer $a_server, $a_url = '')
+    public function __construct(ilLDAPServer $a_server, string $a_url = '')
     {
+	global $DIC;
+	$this->logger = $DIC->logger()->auth();
         $this->settings = $a_server;
         
-        if (strlen($a_url)) {
+        if ($a_url !=='') {
             $this->ldap_server_url = $a_url;
         } else {
             $this->ldap_server_url = $this->settings->getUrl();
         }
         
         $this->mapping = ilLDAPAttributeMapping::_getInstanceByServerId($this->settings->getServerId());
-        $this->log = $GLOBALS['DIC']->logger()->auth();
-        
+                
         $this->fetchUserProfileFields();
         $this->connect();
     }
@@ -81,21 +72,11 @@ class ilsyncQuery
      * Get server
      * @return ilLDAPServer
      */
-    public function getServer()
+    public function getServer(): ilLDAPServer
     {
         return $this->settings;
     }
-    
-    /**
-     * Get logger
-     * @return ilLogger
-     */
-    public function getLogger()
-    {
-        return $this->log;
-    }
-    
-    
+     
     /**
      * Get one user by login name
      *
@@ -103,15 +84,14 @@ class ilsyncQuery
      * @param string login name
      * @return array of user data
      */
-    public function fetchUser($a_name)
+    public function fetchUser($a_name): array
     {
         if (!$this->readUserData($a_name)) {
-            return array();
+            return [];
         } else {
             return $this->users;
         }
     }
-    
     
     /**
      * Fetch all users
