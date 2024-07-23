@@ -9,7 +9,7 @@ class ilsyncPlugin extends ilCronHookPlugin {
 	
 
 	/** @var Container $dic */
-    private $dic;
+    	private $dic;
 
     
 	public function __construct() {
@@ -49,42 +49,6 @@ class ilsyncPlugin extends ilCronHookPlugin {
 	 */
 	public function getCronJobInstance($a_job_id)
 	{
-	return new ilsyncCron();
-	/*
-		switch ($a_job_id)
-		{
-			case ilsyncCron::JOB_ID:
-				return new ilsyncCron();
-
-			default:
-				return null;
-		}*/
+		return new ilsyncCron();
 	}
-
-
-	/**
-	 * @inheritdoc
-	 */
-	 /*
-	protected function deleteData()
-	{
-		// Nothing to delete
-	}
-    
-    
-        /**
-     * @param string $component
-     * @param string $event
-     * @param array  $parameters
-     */
-     /*
-    public function handleEvent($component, $event, $parameters) {
-		
-       
-    }
-
-    protected function afterUninstall()
-    {
-       
-    }*/
 }
