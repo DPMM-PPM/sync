@@ -485,9 +485,9 @@ class ilsyncQuery
      * @access public
      *
      */
-    private function fetchGroupMembers($a_name = '')
+    private function fetchGroupMembers(string $a_name = ''): void
     {
-        $group_name = strlen($a_name) ? $a_name : $this->settings->getGroupName();
+        $group_name = $a_name !== '' ? $a_name : $this->settings->getGroupName();
         
         // Build filter
         $filter = sprintf(
@@ -499,13 +499,13 @@ class ilsyncQuery
         
         
         // Build search base
-        if (($gdn = $this->settings->getGroupDN()) && substr($gdn, -1) != ',') {
+        if (($gdn = $this->settings->getGroupDN()) && substr($gdn, -1) !== ',') {
             $gdn .= ',';
         }
         $gdn .= $this->settings->getBaseDN();
         
-        $this->log->debug('Using filter ' . $filter);
-        $this->log->debug('Using DN ' . $gdn);
+        $this->logger->debug('Using filter ' . $filter);
+        $this->logger->debug('Using DN ' . $gdn);
         $res = $this->queryByScope(
             $this->settings->getGroupScope(),
             $gdn,
@@ -519,25 +519,44 @@ class ilsyncQuery
         
         
         if (!$tmp_result->numRows()) {
-            $this->log->info('No group found.');
-            return false;
+            $this->logger->info('No group found.');
+            return;
         }
-                
-        $attribute_name = strtolower($this->settings->getGroupMember());
-        
-        // All groups
-        foreach ($group_data as $data) {
-            if (is_array($data[$attribute_name])) {
-	            $this->log->debug('Found ' . count($data[$attribute_name]) . ' group members for group ' . $data['dn']);
-                foreach ($data[$attribute_name] as $name) {
-                    $this->readUserData($name, true, true);
-                }
-            } else {
-                $this->readUserData($data[$attribute_name], true, true);
+	    
+        /**
+         * @param list<string> $members
+         */
+        $readUserData = function (array $members): void {
+            if ($members === []) {
+                $this->logger->warning(sprintf(
+                    'No valid member values found for group member attribute: %s',
+                    $this->settings->getGroupMember()
+                ));
+                return;
             }
+
+            foreach ($members as $member) {
+                $this->readUserData($member, true, true);
+            }
+        };        
+                
+        // All groups
+	$attribute_name = strtolower($this->settings->getGroupMember());
+        foreach ($group_data as $data) {
+            $members = [];
+            if (isset($data[$attribute_name])) {
+                if (is_array($data[$attribute_name])) {
+                    $members = array_map('strval', array_filter($data[$attribute_name]));
+                    $this->logger->debug('Found ' . count($members) . ' group members for group ' . $data['dn']);
+                } elseif (is_scalar($data[$attribute_name]) && (string) $data[$attribute_name] !== '') {
+                    $members = [
+                        (string) $data[$attribute_name]
+                    ];
+                }
+            }
+            $readUserData($members);
         }
         unset($tmp_result);
-        return;
     }
     
     /**
