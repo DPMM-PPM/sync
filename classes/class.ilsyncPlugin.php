@@ -29,7 +29,7 @@ class ilsyncPlugin extends ilCronHookPlugin {
 	/**
 	 * @inheritdoc
 	 */
-	public function getPluginName() {
+	public function getPluginName():string {
 		return self::PLUGIN_NAME;
 	}
 	
@@ -37,7 +37,7 @@ class ilsyncPlugin extends ilCronHookPlugin {
 	/**
 	 * @inheritdoc
 	 */
-	public function getCronJobInstances() {
+	public function getCronJobInstances():array {
 		return [
 			new ilsyncCron()
 		];
@@ -47,7 +47,7 @@ class ilsyncPlugin extends ilCronHookPlugin {
 	/**
 	 * @inheritdoc
 	 */
-	public function getCronJobInstance($a_job_id)
+	public function getCronJobInstance($a_job_id):ilCronJob
 	{
 		return new ilsyncCron();
 	}
