@@ -845,27 +845,25 @@ class ilsyncQuery
     public function checkPaginationEnabled() : bool
     {
         if ($this->getServer()->getVersion() != 3) {
-            $this->log->info('Pagination control unavailable for ldap v' . $this->getServer()->getVersion());
+            $this->logger->info('Pagination control unavailable for ldap v' . $this->getServer()->getVersion());
             return false;
         }
 
         $result = ldap_read($this->lh, '', '(objectClass=*)', [self::IL_LDAP_SUPPORTED_CONTROL]);
         if ($result === false) {
-            $this->log->warning('Failed to query for pagination control');
+            $this->logger->warning('Failed to query for pagination control');
             return false;
         }
         $entries = (array) (ldap_get_entries($this->lh, $result)[0] ?? []);
         if (
             array_key_exists(strtolower(self::IL_LDAP_SUPPORTED_CONTROL), $entries) &&
             is_array($entries[strtolower(self::IL_LDAP_SUPPORTED_CONTROL)]) &&
-            in_array(self::IL_LDAP_CONTROL_PAGEDRESULTS, $entries[strtolower(self::IL_LDAP_SUPPORTED_CONTROL)])
+            in_array(self::IL_LDAP_CONTROL_PAGEDRESULTS, $entries[strtolower(self::IL_LDAP_SUPPORTED_CONTROL)], true)
         ) {
-            $this->log->info('Using paged control');
+            $this->logger->info('Using paged control');
             return true;
         }
-        $this->log->info('Paged control disabled');
+        $this->logger->info('Paged control disabled');
         return false;
     }
-
-
 }
