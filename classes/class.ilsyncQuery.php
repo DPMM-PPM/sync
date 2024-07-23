@@ -135,7 +135,7 @@ class ilsyncQuery
      * @return object ilLDAPResult
      * @throws ilLDAPQueryException
      */
-    public function query($a_search_base, $a_filter, $a_scope, $a_attributes)
+    public function query( string $a_search_base, string $a_filter, int $a_scope, array $a_attributes): ilLDAPResult
     {
         $res = $this->queryByScope($a_scope, $a_search_base, $a_filter, $a_attributes);
         if ($res === false) {
@@ -156,9 +156,9 @@ class ilsyncQuery
      * @access public
      * @throws ilLDAPQueryException
      */
-    public function modAdd($a_dn, $a_attribute)
+    public function modAdd( string $a_dn, array $a_attribute): bool
     {
-        if (@ldap_mod_add($this->lh, $a_dn, $a_attribute)) {
+        if (ldap_mod_add($this->lh, $a_dn, $a_attribute)) {
             return true;
         }
         throw new ilLDAPQueryException(__METHOD__ . ' ' . ldap_error($this->lh));
@@ -170,9 +170,9 @@ class ilsyncQuery
      * @access public
      * @throws ilLDAPQueryException
      */
-    public function modDelete($a_dn, $a_attribute)
+    public function modDelete( string $a_dn, array $a_attribute): bool
     {
-        if (@ldap_mod_del($this->lh, $a_dn, $a_attribute)) {
+        if (ldap_mod_del($this->lh, $a_dn, $a_attribute)) {
             return true;
         }
         throw new ilLDAPQueryException(__METHOD__ . ' ' . ldap_error($this->lh));
