@@ -295,14 +295,16 @@ class ilsyncQuery
      * @param string $dn
      * @return ilLDAPResult
      */
-    private function runReadAllUsersPartial($dn)
+    private function runReadAllUsersPartial(string $dn): ilLDAPResult
     {
     	global $DIC;
         $ilSetting = $DIC['ilSetting'];
-        $filter = $this->settings->getFilter();
+        
+	$filter = $this->settings->getFilter();
         $page_filter = array('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z');
         $chars = array('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z');
         $tmp_result = new ilLDAPResult($this->lh);
+	    
 	switch ($ilSetting->get('formatUid')){
 	case 0:
 	/* en cas de non prise encharge de la pagination par le LDAP (cas général) */
@@ -337,7 +339,7 @@ class ilsyncQuery
             		$new_filter = '(&';
             		$new_filter .= $filter;
 	    		$new_filter .= ('(' . $this->settings->getUserAttribute() . '=' . $letter . '*))');
-            		$this->log->info('Searching with ldap search and filter ' . $new_filter . ' in ' . $dn);
+            		$this->logger->info('Searching with ldap search and filter ' . $new_filter . ' in ' . $dn);
             		$res = $this->queryByScope(
             			$this->settings->getUserScope(),
                 		$dn,
@@ -346,7 +348,7 @@ class ilsyncQuery
             		);
             	$tmp_result->setResult($res);
             	$tmp_result->run();
-            	$this->log->debug('Trouvé '.$tmp_result->numRows().' users');	       
+            	$this->logger->debug('Trouvé '.$tmp_result->numRows().' users');	       
             	}
 	break;
         case 2:
@@ -358,7 +360,7 @@ class ilsyncQuery
             			$new_filter = '(&';
             			$new_filter .= $filter;
             			$new_filter .= ('(' . $this->settings->getUserAttribute() . '=' . $letter_enCours . '*))');
-                 	   	$this->log->info('Searching with ldap search and filter ' . $new_filter . ' in ' . $dn);
+                 	   	$this->logger->info('Searching with ldap search and filter ' . $new_filter . ' in ' . $dn);
             			$res = $this->queryByScope(
                 			$this->settings->getUserScope(),
                 			$dn,
@@ -367,7 +369,7 @@ class ilsyncQuery
             			);
             			$tmp_result->setResult($res);
             			$tmp_result->run();
-            			$this->log->debug('Trouvé '.$tmp_result->numRows().' users');	
+            			$this->logger->debug('Trouvé '.$tmp_result->numRows().' users');	
             		}
             	}
           break;
@@ -381,7 +383,7 @@ class ilsyncQuery
             			$new_filter = '(&';
             			$new_filter .= $filter;
             			$new_filter .= ('(' . $this->settings->getUserAttribute() . '=' . $letter_enCours . '*))');
-                	    	$this->log->info('Searching with ldap search and filter ' . $new_filter . ' in ' . $dn);
+                	    	$this->logger->info('Searching with ldap search and filter ' . $new_filter . ' in ' . $dn);
             			$res = $this->queryByScope(
                 			$this->settings->getUserScope(),
                 			$dn,
@@ -390,7 +392,7 @@ class ilsyncQuery
             				);
             			$tmp_result->setResult($res);
             			$tmp_result->run();
-            			$this->log->debug('Trouvé '.$tmp_result->numRows().' users');		 		
+            			$this->logger->debug('Trouvé '.$tmp_result->numRows().' users');		 		
             		}
           	  }
             break;	
