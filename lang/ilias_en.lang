@@ -18,3 +18,9 @@ ldap_plg_sync_not_good_day#:#It isn't the good day
 ldap_plg_sync_good_day#:#It's the good day
 ldap_plg_sync_mindefConnect#:#Synchronize openIdconnect accounts
 ldap_plg_sync_mindefConnect_info#:#Synchronizes openidConnect (mindefConnect) accounts based on LDAP linked to openId authentication.
+ldap_plg_sync_uid_choice#:#Pagination managing
+ldap_plg_sync_uid_choice_pagination_info#:#Activate pagination control. Enabled for protocole V3 and up, LDAP results are pages of 100 users each.
+ldap_plg_sync_uid_choice_info#:#Set the methode for LDAP requesting to limit the number of users if the pagination is off.
+ldap_plg_sync_uid_choice_default_info#:#Users are searched by alphabetic order a*, b*, c*,....
+ldap_plg_sync_uid_choice_annudef_info#:#Users are searched like : *.aa*, *.ab*, *.ac., ....,*.ba*,*.bb*, ....
+ldap_plg_sync_uid_choice_drcpt_info#:#Users are searched like : a.a*, a.b*,a.c*,...., b.a*,b.b*, .......
