@@ -834,7 +834,7 @@ class ilsyncQuery
     public function __destruct()
     {
         if ($this->lh) {
-            @ldap_unbind($this->lh);
+            ldap_unbind($this->lh);
         }
     }
 
