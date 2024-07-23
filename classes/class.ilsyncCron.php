@@ -1,11 +1,11 @@
 <?php
 
 require_once('./Services/Cron/classes/class.ilCronManager.php');
-
+declare(strict_types=1);
 
 class ilsyncCron extends ilCronJob
   {
-    const JOB_ID = "sync";
+    public const JOB_ID = "sync";
     private ilLanguage $lng;
     private ilLogger $logger;
     private ilCronManager $cronManager;
@@ -20,7 +20,7 @@ class ilsyncCron extends ilCronJob
         global $DIC;
 
         $this->logger = $DIC->logger()->auth();
-        //$this->cronManager = $DIC->cron()->manager();
+        $this->cronManager = $DIC->cron()->manager();
         //$this->lng = $DIC->language();
         //$this->lng->loadLanguageModule('ldap');
       }
@@ -33,24 +33,20 @@ class ilsyncCron extends ilCronJob
     
     public function getTitle(): string
     {
-//    global $lng;
-        //return $this->lng->txt('ldap_user_sync_cron');
         return ilsyncPlugin::getInstance()->txt('ldap_plg_sync_cron_title');
     }
     
      public function getDescription(): string
     {
-    
-        //return $this->lng->txt("ldap_user_sync_cron_info");
         return ilsyncPlugin::getInstance()->txt('ldap_plg_sync_cron_info');
     }
 
-    public function getDefaultScheduleType()
+    public function getDefaultScheduleType(): int
     {
         return self::SCHEDULE_TYPE_DAILY;
     }
 
-    public function getDefaultScheduleValue()
+    public function getDefaultScheduleValue(): string
     {
         return 'jour';
     }
@@ -99,7 +95,6 @@ class ilsyncCron extends ilCronJob
         $a_form->addItem($chkBox);
         
         /* Ajout des boutons radio choix du format d'uid */
-        
         $choixUid = new ilRadioGroupInputGUI(ilsyncPlugin::getInstance()->txt('ldap_plg_sync_uid_choice'),'uidChoice');
         $choixUid->setInfo(ilsyncPlugin::getInstance()->txt('ldap_plg_sync_uid_choice_info'));
         $choixUid->addOption(new ilRadioOption('Pagination gérée par le LDAP',0,ilsyncPlugin::getInstance()->txt('ldap_plg_sync_uid_choice_pagination_info')));
@@ -110,7 +105,8 @@ class ilsyncCron extends ilCronJob
         $choixUid->setValue($ilSetting->get('formatUid'));
         $a_form->addItem($choixUid);
     }
-    public function saveCustomSettings(ilPropertyFormGUI $a_form)
+	  
+    public function saveCustomSettings(ilPropertyFormGUI $a_form): bool
     {
     	global $DIC;
     	$ilSetting = $DIC['ilSetting'];
@@ -124,25 +120,24 @@ class ilsyncCron extends ilCronJob
     {
     require_once('class.ilsyncQuery.php');
         global $DIC;
-        
-        $ilLog = $DIC['ilLog'];
+        //$ilLog = $DIC['ilLog'];
         $ilSetting = $DIC['ilSetting'];
+	    
         $currentDate = getDate();
         $currentDay = $currentDate['wday'];
         if ($currentDay == $ilSetting->get('runOnDay') or $ilSetting->get('runOnDay')==7){
-        	$ilLog->write("jour OK : Synchro lancée");
+        	$this->logger->info("jour OK : Synchro lancée");
         
         $status = ilCronJobResult::STATUS_NO_ACTION;
 
         $messages = array();
-        
-        
+                
         foreach (ilLDAPServer::_getCronServerIds() as $server_id) {
             try {
                 $current_server = new ilLDAPServer($server_id);
                 $current_server->doConnectionCheck();
                 $this->logger->info("LDAP: starting user synchronization for " . $current_server->getName());
-		 $ldap_query = new ilsyncQuery($current_server);
+		$ldap_query = new ilsyncQuery($current_server);
                 $ldap_query->bind();
 
                 if (is_array($users = $ldap_query->fetchUsers())) {
@@ -174,7 +169,7 @@ class ilsyncCron extends ilCronJob
 
                         $offset += $limit;
 
-                        ilCronManager::ping($this->getId());
+                        $this->cronManager->ping($this->getId());
                     }
                     $this->counter++;
                 } else {
@@ -201,12 +196,11 @@ class ilsyncCron extends ilCronJob
         else
         {
         $result = new ilCronJobResult();
-        $ilLog->write("LDAP pas le bon jour ******************************");
+        $this->logger->info("Pas de synchronisation LDAP planifiée aujourd'hui");
         $result->setMessage(ilsyncPlugin::getInstance()->txt('ldap_plg_sync_not_good_day'));
         $status = ilCronJobResult::STATUS_NO_ACTION;
         }
-       
-        
+               
         $result->setStatus($status);
         return $result;
     }
