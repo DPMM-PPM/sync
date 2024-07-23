@@ -565,23 +565,20 @@ class ilsyncQuery
      * @param bool use group filter
      * @access private
      */
-    private function readUserData($a_name, $a_check_dn = false, $a_try_group_user_filter = false)
+    private function readUserData(string $a_name, bool $a_check_dn = false, bool $a_try_group_user_filter = false): bool
     {
-    	global $DIC;
-        $ilSetting = $DIC['ilSetting'];
+ //   	global $DIC;
+ //       $ilSetting = $DIC['ilSetting'];
     
         $filter = $this->settings->getFilter();
-        if ($a_try_group_user_filter) {
-            if ($this->settings->isMembershipOptional()) {
+        if ($a_try_group_user_filter && $this->settings->isMembershipOptional()) {
                 $filter = $this->settings->getGroupUserFilter();
-            }
         }
         
         // Build filter
-        if ($this->settings->enabledGroupMemberIsDN() and $a_check_dn) {
+        if ($a_check_dn && $this->settings->enabledGroupMemberIsDN()) {
             $dn = $a_name;
-            #$res = $this->queryByScope(IL_LDAP_SCOPE_BASE,$dn,$filter,$this->user_fields);
-
+            
             $fields = array_merge($this->user_fields, array('useraccountcontrol'));
             $res = $this->queryByScope(IL_LDAP_SCOPE_BASE, strtolower($dn), $filter, $fields);
         } else {
@@ -593,7 +590,7 @@ class ilsyncQuery
             );
 
             // Build search base
-            if (($dn = $this->settings->getSearchBase()) && substr($dn, -1) != ',') {
+            if (($dn = $this->settings->getSearchBase()) && substr($dn, -1) !== ',') {
                 $dn .= ',';
             }
             $dn .= $this->settings->getBaseDN();
@@ -601,28 +598,28 @@ class ilsyncQuery
             $res = $this->queryByScope($this->settings->getUserScope(), strtolower($dn), $filter, $fields);
         }
         
-        
         $tmp_result = new ilLDAPResult($this->lh, $res);
         $tmp_result->run();
         if (!$tmp_result->numRows()) {
-            $this->log->info('LDAP: No user data found for: ' . $a_name);
+            $this->logger->info('LDAP: No user data found for: ' . $a_name);
             unset($tmp_result);
             return false;
         }
         
         if ($user_data = $tmp_result->get()) {
-            if (isset($user_data['useraccountcontrol'])) {
-                if (($user_data['useraccountcontrol'] & 0x02)) {
-                    $this->log->notice('LDAP: ' . $a_name . ' account disabled.');
-                    return;
+            if (isset($user_data['useraccountcontrol']) && $user_data['useraccountcontrol'] & 0x02)) {
+                    $this->logger->notice('LDAP: ' . $a_name . ' account disabled.');
+                    return false;
                 }
-            }
             
-            $account = $user_data[strtolower($this->settings->getUserAttribute())];
+            $account = $user_data[strtolower($this->settings->getUserAttribute())] ?? '';
             if (is_array($account)) {
-                $user_ext = strtolower(array_shift($account));
-            } else {
-                $user_ext = strtolower($account);
+                $account = array_shift($account) ?? '';
+	    }
+        $user_ext = strtolower((string) $account);
+	if ($user_ext === '') {
+                $this->logger->notice('LDAP: Could not find user attribute ' . $this->settings->getUserAttribute() . '.');
+                return false;
             }
             
             // auth mode depends on ldap server settings
