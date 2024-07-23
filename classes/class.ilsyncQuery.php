@@ -796,7 +796,7 @@ class ilsyncQuery
      * @param
      *
      */
-    private function fetchUserProfileFields()
+    private function fetchUserProfileFields(): void
     {
         include_once('Services/LDAP/classes/class.ilLDAPRoleAssignmentRules.php');
         
