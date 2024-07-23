@@ -46,7 +46,7 @@ class ilsyncCron extends ilCronJob
         return self::SCHEDULE_TYPE_DAILY;
     }
 
-    public function getDefaultScheduleValue(): string
+    public function getDefaultScheduleValue(): ?int
     {
         return 'jour';
     }
