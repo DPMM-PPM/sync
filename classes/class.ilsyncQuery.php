@@ -730,46 +730,40 @@ class ilsyncQuery
      * @throws ilLDAPQueryException on connection failure.
      *
      */
-    public function bind($a_binding_type = IL_LDAP_BIND_DEFAULT, $a_user_dn = '', $a_password = '')
+    public function bind(int $a_binding_type = ilLDAPQuery::LDAP_BIND_DEFAULT, string $a_user_dn = '', string $a_password = ''): void
     {
         switch ($a_binding_type) {
-            case IL_LDAP_BIND_TEST:
+            case self::LDAP_BIND_TEST:
                 ldap_set_option($this->lh, LDAP_OPT_NETWORK_TIMEOUT, ilLDAPServer::DEFAULT_NETWORK_TIMEOUT);
                 // fall through
                 // no break
-            case IL_LDAP_BIND_DEFAULT:
+            case self::LDAP_BIND_DEFAULT:
                 // Now bind anonymously or as user
                 if (
-                    IL_LDAP_BIND_USER == $this->settings->getBindingType() &&
-                    strlen($this->settings->getBindUser())
+                    ilLDAPServer::LDAP_BIND_USER === $this->settings->getBindingType() &&
+                    $this->settings->getBindUser() !== ''
                 ) {
                     $user = $this->settings->getBindUser();
                     $pass = $this->settings->getBindPassword();
-
-                    define('IL_LDAP_REBIND_USER', $user);
-                    define('IL_LDAP_REBIND_PASS', $pass);
-                    $this->log->debug('Bind as ' . $user);
+                    $this->logger->debug('Bind as ' . $user);
                 } else {
                     $user = $pass = '';
-                    $this->log->debug('Bind anonymous');
+                    $this->logger->debug('Bind anonymous');
                 }
                 break;
                 
-            case IL_LDAP_BIND_ADMIN:
+            case self::LDAP_BIND_ADMIN:
                 $user = $this->settings->getRoleBindDN();
                 $pass = $this->settings->getRoleBindPassword();
                 
-                if (!strlen($user) or !strlen($pass)) {
+                if ($user === '' or $pass === '') {
                     $user = $this->settings->getBindUser();
                     $pass = $this->settings->getBindPassword();
                 }
-
-                define('IL_LDAP_REBIND_USER', $user);
-                define('IL_LDAP_REBIND_PASS', $pass);
                 break;
                 
-            case IL_LDAP_BIND_AUTH:
-                $this->log->debug('Trying to bind as: ' . $a_user_dn);
+            case self::LDAP_BIND_AUTH:
+                $this->logger->debug('Trying to bind as: ' . $a_user_dn);
                 $user = $a_user_dn;
                 $pass = $a_password;
                 break;
@@ -779,11 +773,20 @@ class ilsyncQuery
                 throw new ilLDAPQueryException('LDAP: unknown binding type in: ' . __METHOD__);
         }
         
-        if (!@ldap_bind($this->lh, $user, $pass)) {
-            throw new ilLDAPQueryException('LDAP: Cannot bind as ' . $user . ' with message: ' . ldap_err2str(ldap_errno($this->lh)) . ' Trying fallback...', ldap_errno($this->lh));
-        } else {
-            $this->log->debug('Bind successful.');
+        try {
+            set_error_handler(static function (int $severity, string $message, string $file, int $line): void {
+                throw new ErrorException($message, $severity, $severity, $file, $line);
+            });
+
+            if (!ldap_bind($this->lh, $user, $pass)) {
+                throw new ilLDAPQueryException('LDAP: Cannot bind as ' . $user . ' with message: ' . ldap_err2str(ldap_errno($this->lh)) . ' Trying fallback...', ldap_errno($this->lh));
+            }
+        } catch (Throwable $e) {
+            throw new ilLDAPQueryException('LDAP: Cannot bind as ' . $user . ' with message: ' . $e->getMessage());
+        } finally {
+            restore_error_handler();
         }
+            $this->logger->debug('Bind successful.');
     }
     
     /**
