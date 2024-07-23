@@ -697,7 +697,7 @@ class ilsyncQuery
      */
     private function connect()
     {
-        $this->lh = @ldap_connect($this->ldap_server_url);
+        $this->lh = ldap_connect($this->ldap_server_url);
         
         // LDAP Connect
         if (!$this->lh) {
@@ -712,16 +712,13 @@ class ilsyncQuery
             if (!ldap_set_option($this->lh, LDAP_OPT_REFERRALS, true)) {
                 throw new ilLDAPQueryException("LDAP: Cannot switch on LDAP referrals");
             }
-            #@ldap_set_rebind_proc($this->lh,'referralRebind');
         } else {
             ldap_set_option($this->lh, LDAP_OPT_REFERRALS, false);
-            $this->log->debug('Switching referrals to false.');
+            $this->loggger->debug('Switching referrals to false.');
         }
         // Start TLS
-        if ($this->settings->isActiveTLS()) {
-            if (!ldap_start_tls($this->lh)) {
+        if ($this->settings->isActiveTLS() &&  !ldap_start_tls($this->lh)) {
                 throw new ilLDAPQueryException("LDAP: Cannot start LDAP TLS");
-            }
         }
     }
     
