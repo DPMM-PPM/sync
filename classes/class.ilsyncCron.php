@@ -88,7 +88,11 @@ class ilsyncCron extends ilCronJob
     	foreach ($jours as $key=>$jour){
     		$sub_mlist->addOption(new ilRadioOption($jour,$key,''));
     		}
-    	$sub_mlist->setValue($ilSetting->get('runOnDay'));
+    	if ($ilSetting->get('runOnDay')!=null){
+		$sub_mlist->setValue($ilSetting->get('runOnDay'));
+	}else{
+		$sub_mlist->setValue('0');
+	}
     	$a_form->addItem($sub_mlist);
     	
     	/* Ajout de la case à cocher synchro mindefConnect */
@@ -106,8 +110,12 @@ class ilsyncCron extends ilCronJob
         $choixUid->addOption(new ilRadioOption('Alphabétique',1,ilsyncPlugin::getInstance()->txt('ldap_plg_sync_uid_choice_default_info')));
         $choixUid->addOption(new ilRadioOption('Annudef',2,ilsyncPlugin::getInstance()->txt('ldap_plg_sync_uid_choice_annudef_info')));
         $choixUid->addOption(new ilRadioOption('dr-cpt',3,ilsyncPlugin::getInstance()->txt('ldap_plg_sync_uid_choice_drcpt_info')));
-        $choixUid->setValue(0);
-        $choixUid->setValue($ilSetting->get('formatUid'));
+        $choixUid->setValue('0');
+        if ($ilSetting->get('formatUid')!=null){
+		$choixUid->setValue($ilSetting->get('formatUid'));
+	}else{
+		$choixUid->setValue((string) 0);
+	}
         $a_form->addItem($choixUid);
     }
     public function saveCustomSettings(ilPropertyFormGUI $a_form)
