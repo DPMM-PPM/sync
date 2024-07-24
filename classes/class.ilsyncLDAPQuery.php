@@ -102,7 +102,7 @@ class ilsyncLDAPQuery
         // First of all check if a group restriction is enabled
         // YES: => fetch all group members
         // No:  => fetch all users
-        if ($this->settings->getGroupName()'!== '') {
+        if ($this->settings->getGroupName()!== '') {
             $this->logger->debug('Searching for group members.');
 
             $groups = $this->settings->getGroupNames();
