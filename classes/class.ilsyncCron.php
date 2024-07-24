@@ -98,7 +98,8 @@ class ilsyncCron extends ilCronJob
     	$chkBox = new ilCheckboxInputGUI(
             ilsyncPlugin::getInstance()->txt('ldap_plg_sync_mindefConnect'),'sync_mindefConnect');
         $chkBox->setInfo(ilsyncPlugin::getInstance()->txt('ldap_plg_sync_mindefConnect_info'));
-        $chkBox->setChecked((bool) $ilSetting->get('sync_mindefConnect'),'0');
+	$chkBox->setchecked(false);
+        if ((bool) $ilSetting->get('sync_mindefConnect')!=false){$chkBox->setChecked((bool) $ilSetting->get('sync_mindefConnect'));}
         $a_form->addItem($chkBox);
         
         /* Ajout des boutons radio choix du format d'uid */
@@ -112,8 +113,6 @@ class ilsyncCron extends ilCronJob
         $choixUid->setValue('0');
         if ($ilSetting->get('formatUid')!=null){
 		$choixUid->setValue($ilSetting->get('formatUid'));
-	}else{
-		$choixUid->setValue((string) 0);
 	}
         $a_form->addItem($choixUid);
     }
@@ -122,7 +121,11 @@ class ilsyncCron extends ilCronJob
     	global $DIC;
     	$ilSetting = $DIC['ilSetting'];
     	$ilSetting->set('runOnDay',$_POST['grpWeekDay']);
-    	$ilSetting->set('sync_mindefConnect',$_POST['sync_mindefConnect']);
+    	if (isset($_POST['sync_mindefConnect'])){
+		$ilSetting->set('sync_mindefConnect',$_POST['sync_mindefConnect']);
+	}else{
+		$ilSetting->set('sync_mindefConnect','0');
+	}
     	$ilSetting->set('formatUid',$_POST['uidChoice']);
     	return true; 
     }
