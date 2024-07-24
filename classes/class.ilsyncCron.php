@@ -86,12 +86,11 @@ class ilsyncCron extends ilCronJob
     			ilSyncPlugin::getInstance()->txt('ldap_plg_sync_all')
     			);
     	foreach ($jours as $key=>$jour){
-    		$sub_mlist->addOption(new ilRadioOption($jour,$key,''));
+    		$sub_mlist->addOption(new ilRadioOption($jour,(string) $key,''));
     		}
+	$sub_mlist->setValue((string) 0);
     	if ($ilSetting->get('runOnDay')!=null){
 		$sub_mlist->setValue($ilSetting->get('runOnDay'));
-	}else{
-		$sub_mlist->setValue('0');
 	}
     	$a_form->addItem($sub_mlist);
     	
