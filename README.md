@@ -29,6 +29,7 @@ Choisir un jour de la semaine à laquelle vous souhaitez executer la tâche Cron
 Cette fonctionnalité permet de remplir et de maintenir à jour les champs standards d'une fiche utilisateur sur la base des informations contenues dans un annuaire LDAP.<br>
 Pour utiliser cette fonctionnalité, il faut qu'un LDAP <b>et qu'un seul</b> soit configué et actif dans la rubrique "utilisateurs->authentification->ldap".<br>
 Si c'est le cas, lors de l'éxecution de la tâche, le LDAP sera lu, les utilisateurs dont le compte n'est pas encore créé dans la BDD d'ILIAS seront créés avec le mode d'authentification "oidc", les comptes oidc existants seront mis à jour avec les informations contenues dans le LDAP.
+ATTENTION : Si des comptes LDAP existent avant l'éxecution de la tache CRON avec la case oidc activée, le compte existant sera toujours taggé LDAP et un second compte oidc sera créé. Il peut en résulter une perte des données de suivi de ce compte. Pour éviter ceci, il faut tout d'abord effectuer une requéte SQL pour changer le mode d'authentification de LDAP à oidc puis cocher la case oidc dans le plug-in et lancer la tâche CRON. Les comptes existants seront mis à jour et les comptes absents seront créé.
 <h2>Gestion de la pagination LDAP</h2>
 Depuis la version 6.20, ILIAS prend en charge les gros annuaires LDAP. Un système de pagination a été mis en place et la liste des utilisateurs du LDAP est organisée par pages de 100 utilisateurs.<br>
 Cette fonction est interne au LDAP et disponible à partir du protocole LDAP V3.<br>
