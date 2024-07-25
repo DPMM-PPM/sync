@@ -1,9 +1,5 @@
 <?php
 declare(strict_types=1);
-define('IL_LDAP_BIND_DEFAULT', 0);
-define('IL_LDAP_BIND_ADMIN', 1);
-define('IL_LDAP_BIND_TEST', 2);
-define('IL_LDAP_BIND_AUTH', 10);
 
 /**
 *
@@ -30,7 +26,7 @@ class ilsyncQuery
 
     private string $ldap_server_url;
     private ilLDAPServer $settings;
-    
+    private ilSetting $ilSetting;
     private ilLogger $logger;
     private ilLDAPAttributeMapping $mapping;
     private array $user_fields = [];
@@ -241,7 +237,7 @@ class ilsyncQuery
     private function runReadAllUsersPaged(string $dn): ilLDAPResult
     {
         $filter = '(&' . $this->settings->getFilter();
-        $filter .= ('(' . $this->settings->getUserAttribute() . '='.$letter.'*))');
+        $filter .= ('(' . $this->settings->getUserAttribute() . '=*))');
         $this->logger->info('Searching with ldap search and filter ' . $filter . ' in ' . $dn);
 
         $tmp_result = new ilLDAPResult($this->lh);
@@ -307,7 +303,7 @@ class ilsyncQuery
 	    
 	switch ($ilSetting->get('formatUid')){
 	case 0:
-	/* en cas de non prise encharge de la pagination par le LDAP (cas général) */
+	/* en cas de prise en charge de la pagination par le LDAP (cas général) */
 		array_push($chars,'-');
 		foreach ($page_filter as $letter) {
             		$new_filter = '(&';
@@ -567,8 +563,8 @@ class ilsyncQuery
      */
     private function readUserData(string $a_name, bool $a_check_dn = false, bool $a_try_group_user_filter = false): bool
     {
- //   	global $DIC;
- //       $ilSetting = $DIC['ilSetting'];
+    	global $DIC;
+        $ilSetting = $DIC['ilSetting'];
     
         $filter = $this->settings->getFilter();
         if ($a_try_group_user_filter && $this->settings->isMembershipOptional()) {
@@ -580,7 +576,7 @@ class ilsyncQuery
             $dn = $a_name;
             
             $fields = array_merge($this->user_fields, array('useraccountcontrol'));
-            $res = $this->queryByScope(IL_LDAP_SCOPE_BASE, strtolower($dn), $filter, $fields);
+            $res = $this->queryByScope(ilLDAPServer::LDAP_SCOPE_BASE, strtolower($dn), $filter, $fields);
         } else {
             $filter = sprintf(
                 '(&(%s=%s)%s)',
@@ -607,7 +603,7 @@ class ilsyncQuery
         }
         
         if ($user_data = $tmp_result->get()) {
-            if (isset($user_data['useraccountcontrol']) && $user_data['useraccountcontrol'] & 0x02)) {
+            if (isset($user_data['useraccountcontrol']) && ($user_data['useraccountcontrol'] & 0x02)) {
                     $this->logger->notice('LDAP: ' . $a_name . ' account disabled.');
                     return false;
                 }
@@ -660,16 +656,16 @@ class ilsyncQuery
 
         switch ($a_scope) {
             case ilLDAPServer::LDAP_SCOPE_SUB:
-                $res = ldap_search($this->lh, $a_base_dn, $a_filter, $a_attributes, 0, 0, 0, LDAP_DEFER_NEVER, $controls);
+                $res = ldap_search($this->lh, $a_base_dn, $a_filter, $a_attributes, 0, 0, 0, LDAP_DEREF_NEVER, $controls);
                 break;
                 
             case ilLDAPServer::LDAP_SCOPE_ONE:
-                $res = ldap_list($this->lh, $a_base_dn, $a_filter, $a_attributes, 0, 0, 0, LDAP_DEFER_NEVER, $controls);
+                $res = ldap_list($this->lh, $a_base_dn, $a_filter, $a_attributes, 0, 0, 0, LDAP_DEREF_NEVER, $controls);
                 break;
             
             case ilLDAPServer::LDAP_SCOPE_BASE:
 
-                $res = @ldap_read($this->lh, $a_base_dn, $a_filter, $a_attributes, 0, 0, 0, LDAP_DEFER_NEVER, $controls);
+                $res = @ldap_read($this->lh, $a_base_dn, $a_filter, $a_attributes, 0, 0, 0, LDAP_DEREF_NEVER, $controls);
                 break;
 
             default:
@@ -680,7 +676,7 @@ class ilsyncQuery
         
         $error = ldap_error($this->lh);
         if ($error) {
-            $this->logger->warning("LDAP Error Code: " . $error . "(" . ldap_err2str($error) . ")");
+            $this->logger->warning("LDAP Error Code: " . $error) ;
             $this->logger->warning('Base DN:' . $a_base_dn);
             $this->logger->warning('Filter: ' . $a_filter);
         }
@@ -714,7 +710,7 @@ class ilsyncQuery
             }
         } else {
             ldap_set_option($this->lh, LDAP_OPT_REFERRALS, false);
-            $this->loggger->debug('Switching referrals to false.');
+            $this->logger->debug('Switching referrals to false.');
         }
         // Start TLS
         if ($this->settings->isActiveTLS() &&  !ldap_start_tls($this->lh)) {
@@ -858,7 +854,7 @@ class ilsyncQuery
         if (
             array_key_exists(strtolower(self::IL_LDAP_SUPPORTED_CONTROL), $entries) &&
             is_array($entries[strtolower(self::IL_LDAP_SUPPORTED_CONTROL)]) &&
-            in_array(self::IL_LDAP_CONTROL_PAGEDRESULTS, $entries[strtolower(self::IL_LDAP_SUPPORTED_CONTROL)], true)
+            in_array(LDAP_CONTROL_PAGEDRESULTS, $entries[strtolower(self::IL_LDAP_SUPPORTED_CONTROL)], true)
         ) {
             $this->logger->info('Using paged control');
             return true;
