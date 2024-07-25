@@ -14,9 +14,8 @@ class ilsyncPlugin extends ilCronHookPlugin {
     
 	public function __construct() {
 		global $DIC;
-		$this->db = $DIC->database();
 		$this->dic = $DIC;
-		parent::__construct($this->db, $DIC["component.repository"], self::PLUGIN_ID );		
+		parent::__construct();		
 	}
 	
 	public static function getInstance(): ?ilsyncPlugin
