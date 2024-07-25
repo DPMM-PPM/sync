@@ -48,7 +48,7 @@ class ilsyncCron extends ilCronJob
 
     public function getDefaultScheduleValue(): ?int
     {
-        return 'jour';
+        return 0;
     }
 
     public function hasAutoActivation(): bool
@@ -82,27 +82,32 @@ class ilsyncCron extends ilCronJob
     			ilSyncPlugin::getInstance()->txt('ldap_plg_sync_all')
     			);
     	foreach ($jours as $key=>$jour){
-    		$sub_mlist->addOption(new ilRadioOption($jour,$key,''));
+    		$sub_mlist->addOption(new ilRadioOption($jour,(string)$key,''));
     		}
-    	$sub_mlist->setValue($ilSetting->get('runOnDay'));
+    	$sub_mlist->setValue((string) 0);
+   	if ($ilSetting->get('runOnDay')!=null){
+    		$sub_mlist->setValue($ilSetting->get('runOnDay'));
+    		}
     	$a_form->addItem($sub_mlist);
     	
     	/* Ajout de la case à cocher synchro mindefConnect */
     	$chkBox = new ilCheckboxInputGUI(
             ilsyncPlugin::getInstance()->txt('ldap_plg_sync_mindefConnect'),'sync_mindefConnect');
         $chkBox->setInfo(ilsyncPlugin::getInstance()->txt('ldap_plg_sync_mindefConnect_info'));
-        $chkBox->setChecked((bool) $ilSetting->get('sync_mindefConnect'),'0');
+        $chkBox->setChecked(false);
+        if ((bool) $ilSetting->get('sync_mindefConnect')!= false){$chkBox->setChecked((bool) $ilSetting->get('sync_mindefConnect'));}
         $a_form->addItem($chkBox);
         
         /* Ajout des boutons radio choix du format d'uid */
         $choixUid = new ilRadioGroupInputGUI(ilsyncPlugin::getInstance()->txt('ldap_plg_sync_uid_choice'),'uidChoice');
         $choixUid->setInfo(ilsyncPlugin::getInstance()->txt('ldap_plg_sync_uid_choice_info'));
-        $choixUid->addOption(new ilRadioOption('Pagination gérée par le LDAP',0,ilsyncPlugin::getInstance()->txt('ldap_plg_sync_uid_choice_pagination_info')));
-        $choixUid->addOption(new ilRadioOption('Alphabétique',1,ilsyncPlugin::getInstance()->txt('ldap_plg_sync_uid_choice_default_info')));
-        $choixUid->addOption(new ilRadioOption('Annudef',2,ilsyncPlugin::getInstance()->txt('ldap_plg_sync_uid_choice_annudef_info')));
-        $choixUid->addOption(new ilRadioOption('dr-cpt',3,ilsyncPlugin::getInstance()->txt('ldap_plg_sync_uid_choice_drcpt_info')));
+        $choixUid->addOption(new ilRadioOption('Pagination gérée par le LDAP','0',ilsyncPlugin::getInstance()->txt('ldap_plg_sync_uid_choice_pagination_info')));
+        $choixUid->addOption(new ilRadioOption('Alphabétique','1',ilsyncPlugin::getInstance()->txt('ldap_plg_sync_uid_choice_default_info')));
+        $choixUid->addOption(new ilRadioOption('Annudef','2',ilsyncPlugin::getInstance()->txt('ldap_plg_sync_uid_choice_annudef_info')));
+        $choixUid->addOption(new ilRadioOption('dr-cpt','3',ilsyncPlugin::getInstance()->txt('ldap_plg_sync_uid_choice_drcpt_info')));
         $choixUid->setValue(0);
-        $choixUid->setValue($ilSetting->get('formatUid'));
+        if ($ilSetting->get('formatUid')!=null){
+        	$choixUid->setValue($ilSetting->get('formatUid'));
         $a_form->addItem($choixUid);
     }
 	  
@@ -111,7 +116,7 @@ class ilsyncCron extends ilCronJob
     	global $DIC;
     	$ilSetting = $DIC['ilSetting'];
     	$ilSetting->set('runOnDay',$_POST['grpWeekDay']);
-    	$ilSetting->set('sync_mindefConnect',$_POST['sync_mindefConnect']);
+    	if (isset($_POST['sync_mindefConnect'])){$ilSetting->set('sync_mindefConnect',$_POST['sync_mindefConnect']);}else{$ilSetting->set('sync_mindefConnect','0');}
     	$ilSetting->set('formatUid',$_POST['uidChoice']);
     	return true; 
     }
@@ -120,7 +125,6 @@ class ilsyncCron extends ilCronJob
     {
     require_once('class.ilsyncQuery.php');
         global $DIC;
-        //$ilLog = $DIC['ilLog'];
         $ilSetting = $DIC['ilSetting'];
 	    
         $currentDate = getDate();
@@ -200,8 +204,9 @@ class ilsyncCron extends ilCronJob
         $result->setMessage(ilsyncPlugin::getInstance()->txt('ldap_plg_sync_not_good_day'));
         $status = ilCronJobResult::STATUS_NO_ACTION;
         }
-               
-        $result->setStatus($status);
+        $result = new ilCronJobResult();
+//	$status = ilCronJobResult::STATUS_NO_ACTION;       
+//        $result->setStatus($status);
         return $result;
     }
 
